@@ -53,10 +53,11 @@ private:
 Actuator::Actuator(int pinAct, int pinPot) {
 	//this assigns the pin number for the actuator
 	this->_pinNum = pinAct;
+	this->_pinPotNum = pinPot;
 
 	//this obtains the 
 	for (int i = 0; i < ROLLING_AVG_SIZE; i++) {
-		int val = translate(analogRead(pinPot), IN_MIN, maxReading, OUT_MIN, OUT_MAX);
+		int val = translate(analogRead(_pinPotNum), IN_MIN, maxReading, OUT_MIN, OUT_MAX);
 
 		_rollingAvgList[i] = val;
 	}
@@ -67,6 +68,14 @@ Actuator::Actuator(int pinAct, int pinPot) {
 	}
 
 	_rollingAvg /= ROLLING_AVG_SIZE;
+}
+
+void Actuator::forward() {
+
+}
+
+void Actuator::backward() {
+
 }
 
 //Stops actuator
@@ -120,7 +129,7 @@ float Actuator::translate(float val, int inMin, int inMax,
 void Actuator::moveLeg(int chan, float maxReading, float deadZone, float scaleFactor) {
 
 	//Insert new reading and delete oldest reading
-	rollingAvgList[NEW_MEASUREMENT_INDEX] = translate(chan.voltage, IN_MIN, maxReading, OUT_MIN, OUT_MAX);
+	rollingAvgList[NEW_MEASUREMENT_INDEX] = translate(analogRead(_pinPotNum), IN_MIN, maxReading, OUT_MIN, OUT_MAX);
 	//TODO: change rollingAvgLists to be a queue
 
 	//If the average is larger than the dead zone, then move it
