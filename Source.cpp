@@ -23,20 +23,24 @@ const int OUT_MAX = 1;
 
 class Actuator {
 public:
-	Actuator(int pinAct, int pinPot);
+	Actuator(int pinAct, int pinPot, int pinDir);
 
-	//TODO: WE NEED TO ADD A FUNCTION THE MOVES THE MOTOR BACK AND FORWARD (DECLARED BUT NOT DEFINED)
-	void forward();
-	void backward();
+	//Basic movement controls
+	void forward(int speed);
+	void backward(int speed);
 	void stop();
 	void retract();
-	void move(speed);
+	void move(int speed);
 
-	void moveLeg(int chan, float maxReading, float deadZone, float scaleFactor);
+	//These are the "main" functions that run all necessary bits 
+	void moveLeg(float maxReading, float deadZone, float scaleFactor);
 	float translate(float val, int inMin, int inMax,
 		int outMin, int outMax);
 
-	int getPin() const { return _pinNum; }
+	//GETTERS
+	int getActPin() const { return _pinActNum; }
+	int getDirPin() const { return _pinDirNum; }
+	int getPotPin() const { return _pinPotNum; }
 	int getRollingAvgList() const { return _rollingAvgList; }
 	int getRollingAvg() const { return _rollingAvg; }
 private:
@@ -44,19 +48,23 @@ private:
 	int _pinActNum;
 	//pin for the potentiometer
 	int _pinPotNum;
+	//pin for the direction for our linear actuator
+	int _pinDirNum;
 
 	float _rollingAvgList[ROLLING_AVG_SIZE] = {};
 	float _rollingAvg = 0;
 };
 
 //This collects all of the rolling averages for legs and overall intitalizes the leg
-Actuator::Actuator(int pinAct, int pinPot) {
+Actuator::Actuator(int pinAct, int pinPot, int pinDir) {
 	//this assigns the pin number for the actuator
-	this->_pinNum = pinAct;
+	this->_pinActNum = pinAct;
 	this->_pinPotNum = pinPot;
+	this->_pinDirNum = pinDir;
 
 	//this obtains the 
 	for (int i = 0; i < ROLLING_AVG_SIZE; i++) {
+		//TODO: FIND OUT MAXREADING VALUE HERE 
 		int val = translate(analogRead(_pinPotNum), IN_MIN, maxReading, OUT_MIN, OUT_MAX);
 
 		_rollingAvgList[i] = val;
@@ -70,39 +78,40 @@ Actuator::Actuator(int pinAct, int pinPot) {
 	_rollingAvg /= ROLLING_AVG_SIZE;
 }
 
-void Actuator::forward() {
-
+void Actuator::forward(int speed) {
+	analogWrite(_pinActNum, speed);
+	digitalWrite(_pinDirNum, HIGH);
 }
 
-void Actuator::backward() {
-
+void Actuator::backward(int speed) {
+	analogWrite(_pinActNum, speed);
+	digitalWrite(_pinDirNum, LOW);
 }
 
 //Stops actuator
 void Actuator::stop() {
 	forward(0);
-	//TODO: see if these commands work in C++
-	actuator.stop();
 }
 
 //Retracts actuator
 void Actuator::retract() {
 	backward(1);
-	sleep(2);
-	stop(actuator);
+	delay(2000);
+	stop()
 }
 
 //Moves actuator (expands)
 //A negative speed value will move the actuator backwards
-void Actuator::move(speed) {
+void Actuator::move(int speed) {
 
-	//TODO: what happens if speed == 0?, do we want it to move backwards?
-	//		Or do we need an error statement?
 	if (speed > 0) {
-		actuator.forward(speed);
+		forward(speed);
+	}
+	else if (speed < 0){
+		backward(abs(speed));
 	}
 	else {
-		actuator.backward(abs(speed));
+		stop()
 	}
 
 }
@@ -126,21 +135,24 @@ float Actuator::translate(float val, int inMin, int inMax,
 
 
 //Here is where we tell things to move
-void Actuator::moveLeg(int chan, float maxReading, float deadZone, float scaleFactor) {
+void Actuator::moveLeg(float maxReading, float deadZone, float scaleFactor) {
 
 	//Insert new reading and delete oldest reading
 	rollingAvgList[NEW_MEASUREMENT_INDEX] = translate(analogRead(_pinPotNum), IN_MIN, maxReading, OUT_MIN, OUT_MAX);
 	//TODO: change rollingAvgLists to be a queue
 
 	//If the average is larger than the dead zone, then move it
-	if (abs(rollingAvg <= deadZone)) {
-		stop(actuator);
+	if (abs(_rollingAvg <= deadZone)) {
+		stop();
 	}
 	else {
-		//Do stuff
+		move(_rollingAvg)
 	}
 }
 
+//initalizing the acutators
+actuatorL = Actuator(ActuatorLPWM, PotL, ActuatorLDir);
+actuatorR = Actuator(ActuatorRPWM, PotR, ActuatorRDir);
 
 void setup() {
 	pinMode(ActuatorLPWM, OUTPUT);
@@ -151,19 +163,20 @@ void setup() {
 	pinMode(PotL, INPUT);
 	pinMode(PotR, INPUT);
 	
-	digitalWrite(ActuatorLPWM, 0);
-	digitalWrite(ActuatorRPWM, 0);
-	digitalWrite(ActuatorRDir, 0);
-	digitalWrite(ActuatorLDir, 0);
+	digitalWrite(ActuatorLPWM, LOW);
+	digitalWrite(ActuatorRPWM, LOW);
+	digitalWrite(ActuatorRDir, LOW);
+	digitalWrite(ActuatorLDir, LOW);
 	
-	Particle.function("getRollingAvgs", &getRollingAvgs, VOID);
-	getRollingAvgs();
+	//TODO: ADD FUNCTIONS FOR THE PARTICLE
+	//Particle.function("name", &name, TYPE);
 }
 
 
 //Void loop acts as main
 void loop() {
-
-	moveLeg(/*left actuator, some stuff*/);
-	moveLeg(/*right actuator, some stuff*/);
+	
+	actuatorL.moveLeg(/*some stuff*/);
+	actuatorR.moveLeg(/*some stuff*/);
+	
 }
