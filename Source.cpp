@@ -17,10 +17,12 @@ const int IN_MIN = 0;
 const int OUT_MIN = -1;
 const int OUT_MAX = 1;
 
+bool firstTime = true;
+
 class Actuator {
 public:
-	Actuator(int pinAct, int pinPot, int pinDir);
-
+	Actuator();
+	void init(int pinAct, int pinPot, int pinDir);
 	//Basic movement controls
 	void forward(int speed);
 	void backward(int speed);
@@ -28,17 +30,16 @@ public:
 	void retract();
 	void move(int speed);
 
-	//These are the "main" functions that run all necessary bits 
+	//These are the "main" functions that run all necessary bits
 	void moveLeg(float deadZone, float scaleFactor);
-	float translate(float val, int inMin, int inMax,
-		int outMin, int outMax);
+	float translate(float val, int inMin, int inMax, int outMin, int outMax);
 
 	//GETTERS
-	int getActPin() const { return _pinActNum; }
-	int getDirPin() const { return _pinDirNum; }
-	int getPotPin() const { return _pinPotNum; }
-	int getRollingAvgList() const { return _rollingAvgList; }
-	int getRollingAvg() const { return _rollingAvg; }
+	//int getActPin() const { return _pinActNum; }
+	//int getDirPin() const { return _pinDirNum; }
+	//int getPotPin() const { return _pinPotNum; }
+	//int getRollingAvgList() const { return _rollingAvgList; }
+	//int getRollingAvg() const { return _rollingAvg; }
 private:
 	//pin for the actuator
 	int _pinActNum;
@@ -49,11 +50,11 @@ private:
 
 	float _rollingAvgList[ROLLING_AVG_SIZE] = {};
 	float _rollingAvg = 0;
-	float _maxReading = 0
+	float _maxReading = 0;
 };
 
 //This collects all of the rolling averages for legs and overall intitalizes the leg
-Actuator::Actuator(int pinAct, int pinPot, int pinDir) {
+void Actuator::init(int pinAct, int pinPot, int pinDir) {
 	//this assigns the pin number for the actuator
 	this->_pinActNum = pinAct;
 	this->_pinPotNum = pinPot;
@@ -70,7 +71,7 @@ Actuator::Actuator(int pinAct, int pinPot, int pinDir) {
 	}
 
 	_rollingAvg /= ROLLING_AVG_SIZE;
-	_maxReading = 2 * _rollingAvg
+	_maxReading = 2 * _rollingAvg;
 }
 
 //TODO: WHILE TESTING CONFIRM THAT HIGH AND LOW IS THE RIGHT DIRECTIONS IF NOT SWITCH THEM
@@ -93,7 +94,7 @@ void Actuator::stop() {
 void Actuator::retract() {
 	backward(1);
 	delay(2000);
-	stop()
+	stop();
 }
 
 //Moves actuator (expands)
@@ -103,8 +104,8 @@ void Actuator::move(int speed) {
 	if (speed > 0) {
 		forward(speed);
 	}
-	else if (speed < 0){
-		backward(-1*speed);
+	else if (speed < 0) {
+		backward(-1 * speed);
 	}
 	else {
 		stop();
@@ -137,7 +138,7 @@ void Actuator::moveLeg(float deadZone, float scaleFactor) {
 	int temp = _rollingAvgList[0];
 	_rollingAvgList[0] = translate(analogRead(_pinPotNum), IN_MIN, _maxReading, OUT_MIN, OUT_MAX);
 	//Rolls over all the values one place
-	for (int i = 1; i < ROLLING_AVG_SIZE-1; i++) {
+	for (int i = 1; i < ROLLING_AVG_SIZE - 1; i++) {
 		int temp2 = _rollingAvgList[i];
 		_rollingAvgList[i] = temp;
 		temp = temp2;
@@ -148,7 +149,7 @@ void Actuator::moveLeg(float deadZone, float scaleFactor) {
 	}
 
 	_rollingAvg /= ROLLING_AVG_SIZE;
-	
+
 	//If the average is larger than the dead zone, then move it
 	if (abs(_rollingAvg <= deadZone)) {
 		stop();
@@ -158,9 +159,8 @@ void Actuator::moveLeg(float deadZone, float scaleFactor) {
 	}
 }
 
-//initalizing the acutators
-actuatorL = Actuator(ActuatorLPWM, PotL, ActuatorLDir);
-actuatorR = Actuator(ActuatorRPWM, PotR, ActuatorRDir);
+Actuator* actuatorL;
+Actuator* actuatorR;
 
 void setup() {
 	pinMode(ActuatorLPWM, OUTPUT);
@@ -170,21 +170,29 @@ void setup() {
 
 	pinMode(PotL, INPUT);
 	pinMode(PotR, INPUT);
-	
+
 	digitalWrite(ActuatorLPWM, LOW);
 	digitalWrite(ActuatorRPWM, LOW);
 	digitalWrite(ActuatorRDir, LOW);
 	digitalWrite(ActuatorLDir, LOW);
-	
-	//TODO: ADD FUNCTIONS FOR THE PARTICLE
+
+	actuatorL->init(ActuatorLPWM, PotL, ActuatorLDir);
+	actuatorR->init(ActuatorRPWM, PotR, ActuatorRDir);
+
+	//TODO: ADD FUNCTIONS FOR THE PARTICLE (If we want to do Cloud computing that is)
 	//Particle.function("name", &name, TYPE);
 }
 
 
 //Void loop acts as main
 void loop() {
+
 	//TODO: FIND OUT THE DEAD ZONE AND SCALE FACTOR FOR EACH LEG
-	actuatorL.moveLeg(/*some stuff*/);
-	actuatorR.moveLeg(/*some stuff*/);
-	
+	float deadZoneL = 0.015;
+	float scaleFactorL = 3.8;
+	float deadZoneR = 0.0015;
+	float scaleFactorR = 4;
+	actuatorL->moveLeg(deadZoneL, scaleFactorL);
+	actuatorR->moveLeg(deadZoneR, scaleFactorR);
+
 }
