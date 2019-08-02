@@ -1,4 +1,10 @@
-SYSTEM_MODE(SEMI_AUTOMATIC);
+//Source code to run the exoskeleton
+//Made for the CSM Robotics Club exoskeleton team
+//Last updated: Aug 2, 2019
+//Contributors: Bradley Jesteadt, Ryan Reschak, and Kaylynn Tu
+
+SYSTEM_MODE(SEMI_AUTOMATIC); //Leaves wifi disconnected until user specifies
+//NOTE: also disables things like listening mode and pc-initiated serial!)
 
 //Actuator Vars
 const int ActuatorLDir = D7; //obviously change if applicable
@@ -10,15 +16,18 @@ const int ActuatorRPWM = D2;
 const int PotL = A0;
 const int PotR = A1;
 
-const int ROLLING_AVG_SIZE = 10;
+//Switch to control connection to wifi
+const int webSwitch = A2;
 
 //Declare Vars
+const int ROLLING_AVG_SIZE = 10;
 const int IN_MIN = 0;
 const int OUT_MIN = -1;
 const int OUT_MAX = 1;
+//bool firstTime = true;
 
-bool firstTime = true;
 
+//Actuator class contains all variables and methods related to the actuators
 class Actuator {
 public:
 	Actuator();
@@ -100,19 +109,14 @@ void Actuator::retract() {
 //Moves actuator (expands)
 //A negative speed value will move the actuator backwards
 void Actuator::move(int speed) {
-
 	if (speed > 0) {
 		forward(speed);
-	}
-	else if (speed < 0) {
+	}	else if (speed < 0) {
 		backward(-1 * speed);
-	}
-	else {
+	}	else {
 		stop();
 	}
-
 }
-
 
 //Translates the raw input from the ADC into a 0-1 number
 float Actuator::translate(float val, int inMin, int inMax,
@@ -128,8 +132,6 @@ float Actuator::translate(float val, int inMin, int inMax,
 	return outMin + (valueScaled * rangeOut);
 
 }
-
-
 
 //Here is where we tell things to move
 void Actuator::moveLeg(float deadZone, float scaleFactor) {
@@ -161,8 +163,6 @@ void Actuator::moveLeg(float deadZone, float scaleFactor) {
 
 Actuator* actuatorL;
 Actuator* actuatorR;
-
-const int webSwitch = A2;
 
 void setup() {
 	Serial.begin(9600);	//Begin output to monitor
@@ -206,17 +206,17 @@ void loop() {
 			delay(1000);
 			Serial.println("Connecting to internet");
 			connected = true;
-		} else if (connected) {
+		} else if (webSwitchVolt < 100 /*TODO: test if this is right comparison value */ && connected) {
 			WiFi.disconnect();
 			connected = false;
 		}
 
-	//TODO: FIND OUT THE DEAD ZONE AND SCALE FACTOR FOR EACH LEG
-	float deadZoneL = 0.015;
-	float scaleFactorL = 3.8;
-	float deadZoneR = 0.0015;
-	float scaleFactorR = 4;
-	actuatorL->moveLeg(deadZoneL, scaleFactorL);
-	actuatorR->moveLeg(deadZoneR, scaleFactorR);
-}
+		//TODO: FIND OUT THE DEAD ZONE AND SCALE FACTOR FOR EACH LEG
+		float deadZoneL = 0.015;
+		float scaleFactorL = 3.8;
+		float deadZoneR = 0.0015;
+		float scaleFactorR = 4;
+		actuatorL->moveLeg(deadZoneL, scaleFactorL);
+		actuatorR->moveLeg(deadZoneR, scaleFactorR);
+	}
 }
