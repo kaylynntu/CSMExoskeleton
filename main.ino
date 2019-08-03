@@ -7,17 +7,17 @@ SYSTEM_MODE(SEMI_AUTOMATIC); //Leaves wifi disconnected until user specifies
 //NOTE: also disables things like listening mode and pc-initiated serial!)
 
 //Actuator Vars
-const int ActuatorLDir = D7; //obviously change if applicable
-const int ActuatorRDir = D6;
+const int ActuatorLDir = D2;
+const int ActuatorRDir = D0;
 const int ActuatorLPWM = D3; //0-3 have pwm capabilities
-const int ActuatorRPWM = D2;
+const int ActuatorRPWM = D1;
 
 //Linear Poteniometer
-const int PotL = A0;
-const int PotR = A1;
+const int PotL = A1;
+const int PotR = A0;
 
 //Switch to control connection to wifi
-const int webSwitch = A2;
+const int wifiSwitch = D4;
 
 //Declare Vars
 const int ROLLING_AVG_SIZE = 10;
@@ -122,6 +122,13 @@ void Actuator::move(int speed) {
 float Actuator::translate(float val, int inMin, int inMax,
 	int outMin, int outMax) {
 
+	//Print statements for future purposes
+	Serial.println("----Actuator::translate values----");
+	Serial.println("Val: " + val);
+	Serial.println("inMin: " + inMin);
+	Serial.println("inMax: " + inMax);
+	Serial.printlin("outMin: " + outMax);
+
 	int rangeIn = inMax - inMin;
 	int rangeOut = outMax - outMin;
 
@@ -139,6 +146,7 @@ void Actuator::moveLeg(float deadZone, float scaleFactor) {
 	//Insert new reading and delete oldest reading
 	int temp = _rollingAvgList[0];
 	_rollingAvgList[0] = translate(analogRead(_pinPotNum), IN_MIN, _maxReading, OUT_MIN, OUT_MAX);
+	Serial.printlin("_rollingAvgList[0]: " + _rollingAvgList[0]);
 	//Rolls over all the values one place
 	for (int i = 1; i < ROLLING_AVG_SIZE - 1; i++) {
 		int temp2 = _rollingAvgList[i];
@@ -168,7 +176,7 @@ void setup() {
 	Serial.begin(9600);	//Begin output to monitor
 
 	//Declare pinmodes
-	pinMode(webSwitch, INPUT);
+	pinMode(wifiSwitch, INPUT);
 
 	pinMode(ActuatorLPWM, OUTPUT);
 	pinMode(ActuatorRPWM, OUTPUT);
@@ -178,10 +186,13 @@ void setup() {
 	pinMode(PotL, INPUT);
 	pinMode(PotR, INPUT);
 
+	digitalWrite(wifiSwitch, LOW);
+
 	digitalWrite(ActuatorLPWM, LOW);
 	digitalWrite(ActuatorRPWM, LOW);
 	digitalWrite(ActuatorRDir, LOW);
 	digitalWrite(ActuatorLDir, LOW);
+
 
 	//Initialize actuator
 	actuatorL->init(ActuatorLPWM, PotL, ActuatorLDir);
@@ -195,22 +206,26 @@ void setup() {
 //Void loop acts as main
 void loop() {
 
-	int webSwitchVolt = 0;
+	int wifiSwitchVolt = 0;
+	int secondCount = 0; //For testing purposes
 	bool connected = false;
 
 	while(true) {
 
-		//If webSwitch is high, then connect to internet
-		if (webSwitchVolt > 2500 /*TODO: test if this is right voltage*/ && !connected) {
+		//If wifiSwitch is high, then connect to internet
+		if ( (secondCount  == 5 || wifiSwitchVolt > 2500 /*TODO: test if this is right voltage*/ )&& !connected) {
 			WiFi.connect();
+			Particle.connect();
 			delay(1000);
 			Serial.println("Connecting to internet");
 			connected = true;
-		} else if (webSwitchVolt < 100 /*TODO: test if this is right comparison value */ && connected) {
+		} else if ( (secondCount == 10 || wifiSwitchVolt < 100 /*TODO: test if this is right comparison value */) && connected) {
+			Particle.disconnect();
 			WiFi.disconnect();
+			Serial.println("Disconnecting from the internet");
 			connected = false;
 		}
-
+		secondCount++;
 		//TODO: FIND OUT THE DEAD ZONE AND SCALE FACTOR FOR EACH LEG
 		float deadZoneL = 0.015;
 		float scaleFactorL = 3.8;
